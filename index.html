@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="Un universo cósmico de flores amarillas flotando en el espacio infinito.">
+  <meta name="theme-color" content="#06040a">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Outfit:wght@300;400;500;600&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="./css/main.css">
+</head>
+
+<body>
+  <div id="canvas-container">
+    <canvas id="webgl-canvas"></canvas>
+  </div>
+
+  <button class="action-btn" id="reset-cam-btn" title="Restablecer vista" aria-label="Restablecer vista">
+    ↺
+  </button>
+
+
+  <div class="planet-modal" id="planet-modal" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <img id="modal-flower-img" class="modal-flower-img" src="./img/01.png" alt="Flor Amarilla">
+      <h2 id="modal-text" class="modal-text">Te aprecio</h2>
+      <button class="modal-close-btn" id="modal-close-btn">Cerrar</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Application Logic -->
+  <script src="./js/main.js"></script>
+</body>
+
+</html>
