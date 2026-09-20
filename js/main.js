@@ -1,6 +1,5 @@
 (function () {
   'use strict';
-  // --- Configuration & Data ---
   const PLANET_DATA = [
     { id: 1, img: './img/01.png', text: 'Te aprecio', radius: 45, angle: 0.3, y: 6, size: 20 },
     { id: 2, img: './img/02.png', text: 'Te quiero mucho', radius: 62, angle: 1.2, y: -8, size: 21 },
@@ -37,6 +36,10 @@
   const defaultTarget = new THREE.Vector3(0, 0, 0);
   let targetCamPos = defaultCamPos.clone();
   let targetLookAt = defaultTarget.clone();
+  let startCamPos = defaultCamPos.clone();
+  let startLookAt = defaultTarget.clone();
+  let transitionStartTime = 0;
+  const TRANSITION_DURATION = 800;
   let isTransitioning = false;
   let idleTimer = null;
   let touchStartPos = { x: 0, y: 0 };
@@ -71,6 +74,11 @@
     controls.target.copy(defaultTarget);
     controls.autoRotate = true;
     controls.autoRotateSpeed = 0.5;
+
+    controls.addEventListener('start', () => {
+      isTransitioning = false;
+      pauseAutoRotate();
+    });
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
     scene.add(ambientLight);
@@ -447,6 +455,7 @@
     renderer.domElement.addEventListener('pointerdown', (e) => {
       touchStartPos = { x: e.clientX, y: e.clientY };
       pointerDownTime = performance.now();
+      isTransitioning = false;
       pauseAutoRotate();
     });
 
@@ -501,11 +510,9 @@
     modalText.textContent = data.text;
     planetModal.classList.add('active');
 
-    const targetPos = new THREE.Vector3(
-      worldPos.x * 0.7,
-      worldPos.y + 8,
-      worldPos.z * 0.7 + 35
-    );
+    const offsetDir = camera.position.clone().sub(worldPos).normalize();
+    if (offsetDir.lengthSq() < 0.001) offsetDir.set(0, 0.3, 1).normalize();
+    const targetPos = worldPos.clone().add(offsetDir.multiplyScalar(45));
     focusOnCameraPosition(targetPos, worldPos);
   }
 
@@ -514,8 +521,11 @@
   }
 
   function focusOnCameraPosition(camPos, lookAtTarget) {
+    startCamPos.copy(camera.position);
+    startLookAt.copy(controls.target);
     targetCamPos.copy(camPos);
     targetLookAt.copy(lookAtTarget);
+    transitionStartTime = performance.now();
     isTransitioning = true;
   }
 
@@ -582,13 +592,16 @@
     });
 
     if (isTransitioning) {
-      camera.position.lerp(targetCamPos, 0.06);
-      controls.target.lerp(targetLookAt, 0.06);
+      const elapsed = performance.now() - transitionStartTime;
+      const progress = Math.min(elapsed / TRANSITION_DURATION, 1.0);
+      const ease = 1 - Math.pow(1 - progress, 3);
 
-      if (
-        camera.position.distanceTo(targetCamPos) < 0.6 &&
-        controls.target.distanceTo(targetLookAt) < 0.6
-      ) {
+      camera.position.lerpVectors(startCamPos, targetCamPos, ease);
+      controls.target.lerpVectors(startLookAt, targetLookAt, ease);
+
+      if (progress >= 1.0) {
+        camera.position.copy(targetCamPos);
+        controls.target.copy(targetLookAt);
         isTransitioning = false;
       }
     }
