@@ -643,33 +643,51 @@
         emissiveIntensity: 0.35
       });
 
-      const textOptions = {
+      const titleOptions = {
         font: font,
-        size: 5.5,
-        height: 1.5,
+        size: 4.2,
+        height: 1.1,
         curveSegments: 12,
         bevelEnabled: true,
-        bevelThickness: 0.45,
-        bevelSize: 0.25,
+        bevelThickness: 0.3,
+        bevelSize: 0.18,
         bevelSegments: 4
       };
 
-      const paraGeo = new THREE.TextGeometry('PARA', textOptions);
-      paraGeo.computeBoundingBox();
-      paraGeo.center();
-      const paraMesh = new THREE.Mesh(paraGeo, textMat);
-      paraMesh.position.y = 3.8;
+      const heroOptions = {
+        font: font,
+        size: 5.2,
+        height: 1.2,
+        curveSegments: 12,
+        bevelEnabled: true,
+        bevelThickness: 0.35,
+        bevelSize: 0.2,
+        bevelSegments: 4
+      };
 
-      const danaGeo = new THREE.TextGeometry('DIANA', textOptions);
-      danaGeo.computeBoundingBox();
-      danaGeo.center();
-      const danaMesh = new THREE.Mesh(danaGeo, textMat);
-      danaMesh.position.y = -3.8;
+      const line1Geo = new THREE.TextGeometry('FELIZ DIA DE LAS', titleOptions);
+      line1Geo.computeBoundingBox();
+      line1Geo.center();
+      const line1Mesh = new THREE.Mesh(line1Geo, textMat);
+      line1Mesh.position.y = 7.6;
+
+      const line2Geo = new THREE.TextGeometry('FLORES AMARILLAS', titleOptions);
+      line2Geo.computeBoundingBox();
+      line2Geo.center();
+      const line2Mesh = new THREE.Mesh(line2Geo, textMat);
+      line2Mesh.position.y = 0.5;
+
+      const dianaGeo = new THREE.TextGeometry('DIANA', heroOptions);
+      dianaGeo.computeBoundingBox();
+      dianaGeo.center();
+      const dianaMesh = new THREE.Mesh(dianaGeo, textMat);
+      dianaMesh.position.y = -7.4;
 
       centerText3DGroup = new THREE.Group();
-      centerText3DGroup.add(paraMesh);
-      centerText3DGroup.add(danaMesh);
-      centerText3DGroup.position.set(0, 9.5, 0);
+      centerText3DGroup.add(line1Mesh);
+      centerText3DGroup.add(line2Mesh);
+      centerText3DGroup.add(dianaMesh);
+      centerText3DGroup.position.set(0, 12.0, 0);
 
       scene.add(centerText3DGroup);
     });
@@ -964,7 +982,7 @@
 
 
     if (centerText3DGroup) {
-      centerText3DGroup.position.y = 9.5 + Math.sin(elapsedTime * 1.6) * 0.8;
+      centerText3DGroup.position.y = 12.0 + Math.sin(elapsedTime * 1.6) * 0.8;
     }
 
     if (floorPhraseGroup) {
