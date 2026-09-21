@@ -1,5 +1,6 @@
 (function () {
   'use strict';
+  
   const PLANET_DATA = [
     { id: 1, img: './img/01.png', text: 'Te aprecio', radius: 45, angle: 0.3, y: 6, size: 20 },
     { id: 2, img: './img/02.png', text: 'Te quiero mucho', radius: 62, angle: 1.2, y: -8, size: 21 },
