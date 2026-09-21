@@ -28,6 +28,8 @@
 
   let scene, camera, renderer, controls;
   let galaxyPoints, vortexMesh, centerText3DGroup;
+  let deepStarPoints, midStarPoints, heroStarPoints;
+  let deepStarMaterial, midStarMaterial, heroStarMaterial;
   const flowerPlanets = [];
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
@@ -96,6 +98,7 @@
     scene.add(backLight);
 
     createGalaxy();
+    createRealisticSpaceEnvironment();
     createCenterVortex();
     createCenter3DText();
     loadFlowerPlanets();
@@ -172,25 +175,61 @@
     return new THREE.CanvasTexture(vCanvas);
   }
 
-  function createTextMesh(text) {
-    const tCanvas = document.createElement('canvas');
-    tCanvas.width = 512;
-    tCanvas.height = 128;
-    const ctx = tCanvas.getContext('2d');
+  function renderLabelTexture(canvas, text) {
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
 
-    ctx.font = '600 36px "Outfit", sans-serif';
+    ctx.clearRect(0, 0, width, height);
+
+    let fontSize = 150;
+    ctx.font = `${fontSize}px "PlanetLabelFont", "Outfit", sans-serif`;
+    let measured = ctx.measureText(text).width;
+    while (measured > width - 44 && fontSize > 22) {
+      fontSize -= 2;
+      ctx.font = `${fontSize}px "PlanetLabelFont", "Outfit", sans-serif`;
+      measured = ctx.measureText(text).width;
+    }
+
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
     ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 10;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 2;
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(text, 256, 64);
+    ctx.fillText(text, width / 2, height / 2);
 
-    ctx.shadowBlur = 4;
-    ctx.fillText(text, 256, 64);
+    ctx.shadowBlur = 3;
+    ctx.fillText(text, width / 2, height / 2);
+  }
+
+  function refreshPlanetLabelTextures() {
+    flowerPlanets.forEach((group) => {
+      const u = group.userData;
+      if (u && u.textMesh && u.textMesh.material && u.textMesh.material.map && u.textMesh.material.map.image) {
+        renderLabelTexture(u.textMesh.material.map.image, u.planetData.text);
+        u.textMesh.material.map.needsUpdate = true;
+      }
+    });
+  }
+
+  if ('fonts' in document) {
+    document.fonts.load('42px "PlanetLabelFont"').then(() => {
+      refreshPlanetLabelTextures();
+    }).catch(() => { });
+    document.fonts.ready.then(() => {
+      refreshPlanetLabelTextures();
+    });
+  }
+
+  function createTextMesh(text) {
+    const tCanvas = document.createElement('canvas');
+    tCanvas.width = 512;
+    tCanvas.height = 128;
+
+    renderLabelTexture(tCanvas, text);
 
     const texture = new THREE.CanvasTexture(tCanvas);
     texture.minFilter = THREE.LinearFilter;
@@ -266,48 +305,284 @@
 
     galaxyPoints = new THREE.Points(geometry, material);
     scene.add(galaxyPoints);
-
-    createAmbientStarfield(starTex);
   }
 
-  function createAmbientStarfield(starTex) {
-    const count = 1800;
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
+  function createCrispStarTexture() {
+    const pCanvas = document.createElement('canvas');
+    pCanvas.width = 64;
+    pCanvas.height = 64;
+    const ctx = pCanvas.getContext('2d');
 
-    for (let i = 0; i < count; i++) {
+    const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    grad.addColorStop(0.08, 'rgba(255, 255, 255, 0.98)');
+    grad.addColorStop(0.22, 'rgba(255, 248, 220, 0.65)');
+    grad.addColorStop(0.48, 'rgba(255, 215, 140, 0.22)');
+    grad.addColorStop(0.85, 'rgba(255, 180, 80, 0.04)');
+    grad.addColorStop(1, 'rgba(255, 160, 40, 0)');
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 64, 64);
+
+    const texture = new THREE.CanvasTexture(pCanvas);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    return texture;
+  }
+
+  function createCrossSpikeTexture() {
+    const sCanvas = document.createElement('canvas');
+    sCanvas.width = 128;
+    sCanvas.height = 128;
+    const ctx = sCanvas.getContext('2d');
+    const cx = 64;
+    const cy = 64;
+
+    const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 32);
+    coreGrad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    coreGrad.addColorStop(0.12, 'rgba(255, 250, 235, 0.95)');
+    coreGrad.addColorStop(0.32, 'rgba(255, 225, 150, 0.45)');
+    coreGrad.addColorStop(0.7, 'rgba(255, 190, 70, 0.1)');
+    coreGrad.addColorStop(1, 'rgba(255, 160, 20, 0)');
+    ctx.fillStyle = coreGrad;
+    ctx.fillRect(0, 0, 128, 128);
+
+    const hGrad = ctx.createLinearGradient(0, cy, 128, cy);
+    hGrad.addColorStop(0, 'rgba(255, 240, 180, 0)');
+    hGrad.addColorStop(0.32, 'rgba(255, 248, 210, 0.3)');
+    hGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.98)');
+    hGrad.addColorStop(0.68, 'rgba(255, 248, 210, 0.3)');
+    hGrad.addColorStop(1, 'rgba(255, 240, 180, 0)');
+    ctx.fillStyle = hGrad;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 60, 1.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const vGrad = ctx.createLinearGradient(cx, 0, cx, 128);
+    vGrad.addColorStop(0, 'rgba(255, 240, 180, 0)');
+    vGrad.addColorStop(0.32, 'rgba(255, 248, 210, 0.3)');
+    vGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.98)');
+    vGrad.addColorStop(0.68, 'rgba(255, 248, 210, 0.3)');
+    vGrad.addColorStop(1, 'rgba(255, 240, 180, 0)');
+    ctx.fillStyle = vGrad;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 1.8, 60, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const texture = new THREE.CanvasTexture(sCanvas);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    return texture;
+  }
+
+  function getRealisticStarColor() {
+    const roll = Math.random();
+    if (roll < 0.46) {
+      const b = 0.98 + Math.random() * 0.02;
+      const r = 0.94 + Math.random() * 0.06;
+      return new THREE.Color(r, r, b);
+    } else if (roll < 0.82) {
+      const g = 0.88 + Math.random() * 0.09;
+      const b = 0.60 + Math.random() * 0.25;
+      return new THREE.Color(1.0, g, b);
+    } else {
+      const g = 0.70 + Math.random() * 0.15;
+      const b = 0.20 + Math.random() * 0.18;
+      return new THREE.Color(1.0, g, b);
+    }
+  }
+
+  const starVertexShader = `
+    attribute float aSize;
+    attribute float aTwinkleSpeed;
+    attribute float aTwinklePhase;
+    attribute float aTwinkleStrength;
+    attribute vec3 aColor;
+
+    uniform float uTime;
+    uniform float uPixelRatio;
+
+    varying vec3 vColor;
+    varying float vTwinkle;
+
+    void main() {
+      vColor = aColor;
+      float t = sin(uTime * aTwinkleSpeed + aTwinklePhase);
+      float twinkle = 1.0 - (aTwinkleStrength * 0.5 * (1.0 - t));
+      vTwinkle = twinkle;
+
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = aSize * (0.8 + 0.3 * twinkle) * (320.0 / -mvPosition.z) * uPixelRatio;
+      gl_PointSize = max(gl_PointSize, 1.0);
+
+      gl_Position = projectionMatrix * mvPosition;
+    }
+  `;
+
+  const starFragmentShader = `
+    uniform sampler2D uTexture;
+    varying vec3 vColor;
+    varying float vTwinkle;
+
+    void main() {
+      vec4 texColor = texture2D(uTexture, gl_PointCoord);
+      if (texColor.a < 0.02) discard;
+      gl_FragColor = vec4(vColor * texColor.rgb, texColor.a * vTwinkle);
+    }
+  `;
+
+  function createStarShaderMaterial(texture) {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0.0 },
+        uTexture: { value: texture },
+        uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 2) }
+      },
+      vertexShader: starVertexShader,
+      fragmentShader: starFragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      fog: false
+    });
+  }
+
+  function createRealisticSpaceEnvironment() {
+    const crispTex = createCrispStarTexture();
+    const spikeTex = createCrossSpikeTexture();
+
+    const deepCount = 5000;
+    const deepPos = new Float32Array(deepCount * 3);
+    const deepCol = new Float32Array(deepCount * 3);
+    const deepSizes = new Float32Array(deepCount);
+    const deepSpeed = new Float32Array(deepCount);
+    const deepPhase = new Float32Array(deepCount);
+    const deepStrength = new Float32Array(deepCount);
+
+    for (let i = 0; i < deepCount; i++) {
       const i3 = i * 3;
       const u = Math.random();
       const v = Math.random();
       const theta = u * 2.0 * Math.PI;
       const phi = Math.acos(2.0 * v - 1.0);
-      const r = 260 + Math.random() * 120;
+      const r = 380 + Math.random() * 480;
+      const sinPhi = Math.sin(phi);
 
-      positions[i3] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta) * 0.7;
-      positions[i3 + 2] = r * Math.cos(phi);
+      deepPos[i3] = r * sinPhi * Math.cos(theta);
+      deepPos[i3 + 1] = r * Math.cos(phi);
+      deepPos[i3 + 2] = r * sinPhi * Math.sin(theta);
 
-      const isGold = Math.random() > 0.4;
-      colors[i3] = isGold ? 1.0 : 0.9;
-      colors[i3 + 1] = isGold ? 0.85 : 0.95;
-      colors[i3 + 2] = isGold ? 0.4 : 1.0;
+      const c = getRealisticStarColor();
+      deepCol[i3] = c.r;
+      deepCol[i3 + 1] = c.g;
+      deepCol[i3 + 2] = c.b;
+
+      deepSizes[i] = 1.4 + Math.random() * 1.8;
+      deepSpeed[i] = 1.2 + Math.random() * 2.8;
+      deepPhase[i] = Math.random() * Math.PI * 2;
+      deepStrength[i] = 0.35 + Math.random() * 0.45;
     }
 
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const deepGeo = new THREE.BufferGeometry();
+    deepGeo.setAttribute('position', new THREE.BufferAttribute(deepPos, 3));
+    deepGeo.setAttribute('aColor', new THREE.BufferAttribute(deepCol, 3));
+    deepGeo.setAttribute('aSize', new THREE.BufferAttribute(deepSizes, 1));
+    deepGeo.setAttribute('aTwinkleSpeed', new THREE.BufferAttribute(deepSpeed, 1));
+    deepGeo.setAttribute('aTwinklePhase', new THREE.BufferAttribute(deepPhase, 1));
+    deepGeo.setAttribute('aTwinkleStrength', new THREE.BufferAttribute(deepStrength, 1));
 
-    const mat = new THREE.PointsMaterial({
-      size: 1.8,
-      map: starTex,
-      vertexColors: true,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
+    deepStarMaterial = createStarShaderMaterial(crispTex);
+    deepStarPoints = new THREE.Points(deepGeo, deepStarMaterial);
+    scene.add(deepStarPoints);
 
-    const ambientPoints = new THREE.Points(geo, mat);
-    scene.add(ambientPoints);
+    const midCount = 1200;
+    const midPos = new Float32Array(midCount * 3);
+    const midCol = new Float32Array(midCount * 3);
+    const midSizes = new Float32Array(midCount);
+    const midSpeed = new Float32Array(midCount);
+    const midPhase = new Float32Array(midCount);
+    const midStrength = new Float32Array(midCount);
+
+    for (let i = 0; i < midCount; i++) {
+      const i3 = i * 3;
+      const angle = Math.random() * Math.PI * 2;
+      const rad = 25 + Math.pow(Math.random(), 0.75) * 235;
+      const ySpread = (Math.random() - 0.5) * 150;
+
+      midPos[i3] = Math.cos(angle) * rad + (Math.random() - 0.5) * 24;
+      midPos[i3 + 1] = ySpread;
+      midPos[i3 + 2] = Math.sin(angle) * rad + (Math.random() - 0.5) * 24;
+
+      const c = getRealisticStarColor();
+      midCol[i3] = c.r;
+      midCol[i3 + 1] = c.g;
+      midCol[i3 + 2] = c.b;
+
+      midSizes[i] = 2.2 + Math.random() * 2.4;
+      midSpeed[i] = 0.8 + Math.random() * 2.0;
+      midPhase[i] = Math.random() * Math.PI * 2;
+      midStrength[i] = 0.25 + Math.random() * 0.4;
+    }
+
+    const midGeo = new THREE.BufferGeometry();
+    midGeo.setAttribute('position', new THREE.BufferAttribute(midPos, 3));
+    midGeo.setAttribute('aColor', new THREE.BufferAttribute(midCol, 3));
+    midGeo.setAttribute('aSize', new THREE.BufferAttribute(midSizes, 1));
+    midGeo.setAttribute('aTwinkleSpeed', new THREE.BufferAttribute(midSpeed, 1));
+    midGeo.setAttribute('aTwinklePhase', new THREE.BufferAttribute(midPhase, 1));
+    midGeo.setAttribute('aTwinkleStrength', new THREE.BufferAttribute(midStrength, 1));
+
+    midStarMaterial = createStarShaderMaterial(crispTex);
+    midStarPoints = new THREE.Points(midGeo, midStarMaterial);
+    scene.add(midStarPoints);
+
+    const heroCount = 42;
+    const heroPos = new Float32Array(heroCount * 3);
+    const heroCol = new Float32Array(heroCount * 3);
+    const heroSizes = new Float32Array(heroCount);
+    const heroSpeed = new Float32Array(heroCount);
+    const heroPhase = new Float32Array(heroCount);
+    const heroStrength = new Float32Array(heroCount);
+
+    for (let i = 0; i < heroCount; i++) {
+      const i3 = i * 3;
+      const u = Math.random();
+      const v = Math.random();
+      const theta = u * 2.0 * Math.PI;
+      const phi = Math.acos(2.0 * v - 1.0);
+      const r = 160 + Math.random() * 320;
+      const sinPhi = Math.sin(phi);
+
+      heroPos[i3] = r * sinPhi * Math.cos(theta);
+      heroPos[i3 + 1] = r * Math.cos(phi) * 0.85;
+      heroPos[i3 + 2] = r * sinPhi * Math.sin(theta);
+
+      const isGold = Math.random() > 0.48;
+      const c = isGold
+        ? new THREE.Color(1.0, 0.85 + Math.random() * 0.1, 0.35 + Math.random() * 0.2)
+        : new THREE.Color(0.96 + Math.random() * 0.04, 0.97 + Math.random() * 0.03, 1.0);
+
+      heroCol[i3] = c.r;
+      heroCol[i3 + 1] = c.g;
+      heroCol[i3 + 2] = c.b;
+
+      heroSizes[i] = 12.0 + Math.random() * 8.0;
+      heroSpeed[i] = 0.6 + Math.random() * 1.2;
+      heroPhase[i] = Math.random() * Math.PI * 2;
+      heroStrength[i] = 0.25 + Math.random() * 0.25;
+    }
+
+    const heroGeo = new THREE.BufferGeometry();
+    heroGeo.setAttribute('position', new THREE.BufferAttribute(heroPos, 3));
+    heroGeo.setAttribute('aColor', new THREE.BufferAttribute(heroCol, 3));
+    heroGeo.setAttribute('aSize', new THREE.BufferAttribute(heroSizes, 1));
+    heroGeo.setAttribute('aTwinkleSpeed', new THREE.BufferAttribute(heroSpeed, 1));
+    heroGeo.setAttribute('aTwinklePhase', new THREE.BufferAttribute(heroPhase, 1));
+    heroGeo.setAttribute('aTwinkleStrength', new THREE.BufferAttribute(heroStrength, 1));
+
+    heroStarMaterial = createStarShaderMaterial(spikeTex);
+    heroStarPoints = new THREE.Points(heroGeo, heroStarMaterial);
+    scene.add(heroStarPoints);
   }
 
   function createCenterVortex() {
@@ -510,14 +785,34 @@
     modalText.textContent = data.text;
     planetModal.classList.add('active');
 
-    const offsetDir = camera.position.clone().sub(worldPos).normalize();
-    if (offsetDir.lengthSq() < 0.001) offsetDir.set(0, 0.3, 1).normalize();
-    const targetPos = worldPos.clone().add(offsetDir.multiplyScalar(45));
-    focusOnCameraPosition(targetPos, worldPos);
+    const angle = Math.atan2(worldPos.z, worldPos.x);
+    const rad = Math.hypot(worldPos.x, worldPos.z);
+    const camDist = rad + 36;
+    const camY = worldPos.y + 6;
+    const targetPos = new THREE.Vector3(
+      Math.cos(angle) * camDist,
+      camY,
+      Math.sin(angle) * camDist
+    );
+
+    focusOnCameraPosition(targetPos, defaultTarget);
+    pauseAutoRotate();
   }
 
   function closeModal() {
     planetModal.classList.remove('active');
+
+    const currentAngle = Math.atan2(camera.position.z, camera.position.x);
+    const overviewDist = 115;
+    const overviewY = 42;
+    const pullBackPos = new THREE.Vector3(
+      Math.cos(currentAngle) * overviewDist,
+      overviewY,
+      Math.sin(currentAngle) * overviewDist
+    );
+
+    focusOnCameraPosition(pullBackPos, defaultTarget);
+    scheduleAutoRotateResume();
   }
 
   function focusOnCameraPosition(camPos, lookAtTarget) {
@@ -551,7 +846,11 @@
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const pr = Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(pr);
+    if (deepStarMaterial) deepStarMaterial.uniforms.uPixelRatio.value = pr;
+    if (midStarMaterial) midStarMaterial.uniforms.uPixelRatio.value = pr;
+    if (heroStarMaterial) heroStarMaterial.uniforms.uPixelRatio.value = pr;
   }
 
   const clock = new THREE.Clock();
@@ -563,6 +862,19 @@
 
     if (galaxyPoints) {
       galaxyPoints.rotation.y = elapsedTime * 0.035;
+    }
+
+    if (deepStarMaterial) {
+      deepStarMaterial.uniforms.uTime.value = elapsedTime;
+    }
+    if (midStarMaterial) {
+      midStarMaterial.uniforms.uTime.value = elapsedTime;
+    }
+    if (heroStarMaterial) {
+      heroStarMaterial.uniforms.uTime.value = elapsedTime;
+    }
+    if (deepStarPoints) {
+      deepStarPoints.rotation.y = elapsedTime * 0.003;
     }
 
     if (vortexMesh) {

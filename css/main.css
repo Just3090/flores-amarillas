@@ -1,3 +1,12 @@
+@font-face {
+  font-family: 'PlanetLabelFont';
+  src: url('../fonts/m1.ttf') format('truetype'),
+       url('https://files.traduction-club.live/fonts/m1.TTF') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --color-gold-glow: #ffd700;
   --color-gold-light: #fff2a3;
