@@ -10,12 +10,11 @@
     { id: 7, img: './img/07.png', text: 'Que bonito coincidir contigo', radius: 58, angle: 5.6, y: 4, size: 20 }
   ];
 
-  const GALAXY_CONFIG = {
-    particleCount: 11000,
-    discRadius: 130,
-    arms: 3,
-    spinFactor: 2.8,
-    verticalSpread: 12
+  const STARRY_FLOOR_CONFIG = {
+    floorCount: 45000,
+    centerCoreCount: 15000,
+    outerRadius: 320,
+    verticalSpread: 2.8
   };
 
   const canvas = document.getElementById('webgl-canvas');
@@ -27,8 +26,8 @@
   const modalCloseBtn = document.getElementById('modal-close-btn');
 
   let scene, camera, renderer, controls;
-  let galaxyPoints, vortexMesh, centerText3DGroup;
-  let deepStarPoints, midStarPoints, heroStarPoints;
+  let starryFloorPoints, centerText3DGroup, floorPhraseGroup, spiralPathsPoints;
+  let starryFloorMaterial, spiralPathsMaterial, deepStarPoints, midStarPoints, heroStarPoints;
   let deepStarMaterial, midStarMaterial, heroStarMaterial;
   const flowerPlanets = [];
   const raycaster = new THREE.Raycaster();
@@ -97,11 +96,12 @@
     backLight.position.set(-30, 25, -50);
     scene.add(backLight);
 
-    createGalaxy();
+    createStarryFloor();
+    createSpiralStarlightPaths();
     createRealisticSpaceEnvironment();
-    createCenterVortex();
     createCenter3DText();
     loadFlowerPlanets();
+    createFloorPhrase();
 
     setupEvents();
 
@@ -124,55 +124,6 @@
     ctx.fillRect(0, 0, 64, 64);
 
     return new THREE.CanvasTexture(pCanvas);
-  }
-
-  function createVortexTexture() {
-    const vCanvas = document.createElement('canvas');
-    vCanvas.width = 512;
-    vCanvas.height = 512;
-    const ctx = vCanvas.getContext('2d');
-    const cx = 256;
-    const cy = 256;
-
-    const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 240);
-    coreGrad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    coreGrad.addColorStop(0.12, 'rgba(255, 240, 150, 0.95)');
-    coreGrad.addColorStop(0.35, 'rgba(255, 195, 30, 0.6)');
-    coreGrad.addColorStop(0.7, 'rgba(210, 130, 0, 0.25)');
-    coreGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = coreGrad;
-    ctx.fillRect(0, 0, 512, 512);
-
-    ctx.lineWidth = 14;
-    ctx.lineCap = 'round';
-    const numSpiralArms = 4;
-
-    for (let arm = 0; arm < numSpiralArms; arm++) {
-      const armOffset = (arm * 2 * Math.PI) / numSpiralArms;
-      ctx.beginPath();
-
-      for (let r = 10; r < 230; r += 2) {
-        const angle = armOffset + Math.pow(r / 35, 0.95);
-        const x = cx + r * Math.cos(angle);
-        const y = cy + r * Math.sin(angle);
-
-        if (r === 10) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      }
-
-      ctx.strokeStyle = 'rgba(255, 250, 200, 0.45)';
-      ctx.stroke();
-
-      ctx.lineWidth = 26;
-      ctx.strokeStyle = 'rgba(255, 190, 20, 0.2)';
-      ctx.stroke();
-      ctx.lineWidth = 14;
-    }
-
-    return new THREE.CanvasTexture(vCanvas);
   }
 
   function renderLabelTexture(canvas, text) {
@@ -245,66 +196,158 @@
     return mesh;
   }
 
-  function createGalaxy() {
-    const starTex = createParticleTexture();
-    const positions = new Float32Array(GALAXY_CONFIG.particleCount * 3);
-    const colors = new Float32Array(GALAXY_CONFIG.particleCount * 3);
-    const sizes = new Float32Array(GALAXY_CONFIG.particleCount);
+  function createStarryFloor() {
+    const crispTex = createCrispStarTexture();
+    const totalCount = STARRY_FLOOR_CONFIG.floorCount + STARRY_FLOOR_CONFIG.centerCoreCount;
+    const positions = new Float32Array(totalCount * 3);
+    const colors = new Float32Array(totalCount * 3);
+    const sizes = new Float32Array(totalCount);
+    const speeds = new Float32Array(totalCount);
+    const phases = new Float32Array(totalCount);
+    const strengths = new Float32Array(totalCount);
 
-    const colorGoldCore = new THREE.Color(0xffffff);
-    const colorGoldMid = new THREE.Color(0xffd700);
-    const colorGoldArm = new THREE.Color(0xffa500);
-    const colorStarWhite = new THREE.Color(0xfffae6);
+    const outer = STARRY_FLOOR_CONFIG.outerRadius;
+    const spread = STARRY_FLOOR_CONFIG.verticalSpread;
 
-    for (let i = 0; i < GALAXY_CONFIG.particleCount; i++) {
+    for (let i = 0; i < STARRY_FLOOR_CONFIG.floorCount; i++) {
       const i3 = i * 3;
+      const angle = Math.random() * Math.PI * 2;
+      const r = Math.sqrt(Math.random()) * outer;
 
-      const r = Math.pow(Math.random(), 1.6) * GALAXY_CONFIG.discRadius + 4;
-      const armIndex = i % GALAXY_CONFIG.arms;
-      const armAngle = (armIndex * 2 * Math.PI) / GALAXY_CONFIG.arms;
-      const spinAngle = r * (GALAXY_CONFIG.spinFactor / GALAXY_CONFIG.discRadius);
+      positions[i3] = Math.cos(angle) * r + (Math.random() - 0.5) * 1.5;
+      positions[i3 + 1] = (Math.random() - 0.5) * spread;
+      positions[i3 + 2] = Math.sin(angle) * r + (Math.random() - 0.5) * 1.5;
 
-      const randomX = Math.pow(Math.random(), 2.5) * (Math.random() < 0.5 ? 1 : -1) * 6;
-      const randomZ = Math.pow(Math.random(), 2.5) * (Math.random() < 0.5 ? 1 : -1) * 6;
-      const randomY = Math.pow(Math.random(), 2) * (Math.random() < 0.5 ? 1 : -1) * (GALAXY_CONFIG.verticalSpread * (1 - r / (GALAXY_CONFIG.discRadius * 1.3)));
+      const c = getRealisticStarColor();
+      colors[i3] = c.r;
+      colors[i3 + 1] = c.g;
+      colors[i3 + 2] = c.b;
 
-      positions[i3] = Math.cos(armAngle + spinAngle) * r + randomX;
-      positions[i3 + 1] = randomY;
-      positions[i3 + 2] = Math.sin(armAngle + spinAngle) * r + randomZ;
+      sizes[i] = Math.random() < 0.88
+        ? 1.3 + Math.random() * 1.6
+        : 3.2 + Math.random() * 2.0;
 
-      const normDist = r / GALAXY_CONFIG.discRadius;
-      let mixedColor;
-      if (normDist < 0.25) {
-        mixedColor = colorGoldCore.clone().lerp(colorGoldMid, normDist / 0.25);
-      } else if (normDist < 0.7) {
-        mixedColor = colorGoldMid.clone().lerp(colorGoldArm, (normDist - 0.25) / 0.45);
-      } else {
-        mixedColor = colorGoldArm.clone().lerp(colorStarWhite, (normDist - 0.7) / 0.3);
-      }
+      speeds[i] = 1.0 + Math.random() * 2.4;
+      phases[i] = Math.random() * Math.PI * 2;
+      strengths[i] = 0.35 + Math.random() * 0.45;
+    }
 
-      colors[i3] = mixedColor.r;
-      colors[i3 + 1] = mixedColor.g;
-      colors[i3 + 2] = mixedColor.b;
+    const startIndex = STARRY_FLOOR_CONFIG.floorCount;
+    for (let j = 0; j < STARRY_FLOOR_CONFIG.centerCoreCount; j++) {
+      const idx = startIndex + j;
+      const i3 = idx * 3;
+      const angle = Math.random() * Math.PI * 2;
+      const r = Math.pow(Math.random(), 1.45) * 26;
 
-      sizes[i] = Math.random() * 2.2 + 0.8;
+      positions[i3] = Math.cos(angle) * r + (Math.random() - 0.5) * 0.8;
+      positions[i3 + 1] = (Math.random() - 0.5) * 2.2;
+      positions[i3 + 2] = Math.sin(angle) * r + (Math.random() - 0.5) * 0.8;
+
+      const c = getRealisticStarColor();
+      colors[i3] = c.r;
+      colors[i3 + 1] = c.g;
+      colors[i3 + 2] = c.b;
+
+      sizes[idx] = Math.random() < 0.84
+        ? 1.4 + Math.random() * 1.7
+        : 3.4 + Math.random() * 2.2;
+
+      speeds[idx] = 1.4 + Math.random() * 2.8;
+      phases[idx] = Math.random() * Math.PI * 2;
+      strengths[idx] = 0.4 + Math.random() * 0.45;
     }
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+    geometry.setAttribute('aTwinkleSpeed', new THREE.BufferAttribute(speeds, 1));
+    geometry.setAttribute('aTwinklePhase', new THREE.BufferAttribute(phases, 1));
+    geometry.setAttribute('aTwinkleStrength', new THREE.BufferAttribute(strengths, 1));
 
-    const material = new THREE.PointsMaterial({
-      size: 2.2,
-      map: starTex,
-      vertexColors: true,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
+    starryFloorMaterial = createStarShaderMaterial(crispTex);
+    starryFloorPoints = new THREE.Points(geometry, starryFloorMaterial);
+    scene.add(starryFloorPoints);
+  }
+
+  function getSoftStarlightColor() {
+    const roll = Math.random();
+    if (roll < 0.50) {
+      return new THREE.Color(0.95, 0.94, 0.92);
+    } else if (roll < 0.83) {
+      return new THREE.Color(0.98, 0.85, 0.50);
+    } else {
+      return new THREE.Color(0.98, 0.76, 0.35);
+    }
+  }
+
+  function createSpiralStarlightPaths() {
+    const crispTex = createCrispStarTexture();
+    const starsPerPath = 950;
+    const totalStars = PLANET_DATA.length * starsPerPath;
+
+    const positions = new Float32Array(totalStars * 3);
+    const colors = new Float32Array(totalStars * 3);
+    const sizes = new Float32Array(totalStars);
+    const speeds = new Float32Array(totalStars);
+    const phases = new Float32Array(totalStars);
+    const strengths = new Float32Array(totalStars);
+
+    const windingAngle = 1.33;
+    let starIdx = 0;
+
+    PLANET_DATA.forEach((planet) => {
+      const targetRadius = planet.radius;
+      const targetAngle = planet.angle;
+      const targetY = planet.y;
+
+      for (let s = 0; s < starsPerPath; s++) {
+        const i3 = starIdx * 3;
+
+        const t = Math.pow(Math.random(), 0.85);
+        const r = 3.5 + t * (targetRadius - 3.5);
+        const angle = targetAngle - windingAngle * (1.0 - t);
+
+        const spineX = Math.cos(angle) * r;
+        const spineZ = Math.sin(angle) * r;
+        const spineY = targetY * Math.pow(t, 1.4) * 0.55;
+
+        const dispersion = 1.1 + 3.0 * Math.sin(t * Math.PI);
+        const offsetDist = Math.pow(Math.random(), 1.65) * dispersion;
+        const offsetAngle = Math.random() * Math.PI * 2;
+
+        positions[i3] = spineX + Math.cos(offsetAngle) * offsetDist;
+        positions[i3 + 1] = spineY + (Math.random() - 0.5) * dispersion * 0.6;
+        positions[i3 + 2] = spineZ + Math.sin(offsetAngle) * offsetDist;
+
+        const c = getSoftStarlightColor();
+        colors[i3] = c.r;
+        colors[i3 + 1] = c.g;
+        colors[i3 + 2] = c.b;
+
+        sizes[starIdx] = Math.random() < 0.86
+          ? 1.2 + Math.random() * 1.2
+          : 2.6 + Math.random() * 1.2;
+
+        speeds[starIdx] = 1.0 + Math.random() * 2.2;
+        phases[starIdx] = Math.random() * Math.PI * 2;
+        strengths[starIdx] = 0.28 + Math.random() * 0.38;
+
+        starIdx++;
+      }
     });
 
-    galaxyPoints = new THREE.Points(geometry, material);
-    scene.add(galaxyPoints);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+    geometry.setAttribute('aTwinkleSpeed', new THREE.BufferAttribute(speeds, 1));
+    geometry.setAttribute('aTwinklePhase', new THREE.BufferAttribute(phases, 1));
+    geometry.setAttribute('aTwinkleStrength', new THREE.BufferAttribute(strengths, 1));
+
+    spiralPathsMaterial = createStarShaderMaterial(crispTex, 0.56);
+    spiralPathsPoints = new THREE.Points(geometry, spiralPathsMaterial);
+    scene.add(spiralPathsPoints);
   }
 
   function createCrispStarTexture() {
@@ -421,22 +464,24 @@
 
   const starFragmentShader = `
     uniform sampler2D uTexture;
+    uniform float uOpacity;
     varying vec3 vColor;
     varying float vTwinkle;
 
     void main() {
       vec4 texColor = texture2D(uTexture, gl_PointCoord);
       if (texColor.a < 0.02) discard;
-      gl_FragColor = vec4(vColor * texColor.rgb, texColor.a * vTwinkle);
+      gl_FragColor = vec4(vColor * texColor.rgb, texColor.a * vTwinkle * uOpacity);
     }
   `;
 
-  function createStarShaderMaterial(texture) {
+  function createStarShaderMaterial(texture, baseOpacity = 1.0) {
     return new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0.0 },
         uTexture: { value: texture },
-        uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 2) }
+        uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 2) },
+        uOpacity: { value: baseOpacity }
       },
       vertexShader: starVertexShader,
       fragmentShader: starFragmentShader,
@@ -495,7 +540,7 @@
     deepStarPoints = new THREE.Points(deepGeo, deepStarMaterial);
     scene.add(deepStarPoints);
 
-    const midCount = 1200;
+    const midCount = 400;
     const midPos = new Float32Array(midCount * 3);
     const midCol = new Float32Array(midCount * 3);
     const midSizes = new Float32Array(midCount);
@@ -506,22 +551,22 @@
     for (let i = 0; i < midCount; i++) {
       const i3 = i * 3;
       const angle = Math.random() * Math.PI * 2;
-      const rad = 25 + Math.pow(Math.random(), 0.75) * 235;
-      const ySpread = (Math.random() - 0.5) * 150;
+      const rad = 25 + Math.random() * 110;
+      const ySpread = (Math.random() - 0.5) * 16;
 
-      midPos[i3] = Math.cos(angle) * rad + (Math.random() - 0.5) * 24;
-      midPos[i3 + 1] = ySpread;
-      midPos[i3 + 2] = Math.sin(angle) * rad + (Math.random() - 0.5) * 24;
+      midPos[i3] = Math.cos(angle) * rad + (Math.random() - 0.5) * 10;
+      midPos[i3 + 1] = ySpread + 4;
+      midPos[i3 + 2] = Math.sin(angle) * rad + (Math.random() - 0.5) * 10;
 
       const c = getRealisticStarColor();
       midCol[i3] = c.r;
       midCol[i3 + 1] = c.g;
       midCol[i3 + 2] = c.b;
 
-      midSizes[i] = 2.2 + Math.random() * 2.4;
-      midSpeed[i] = 0.8 + Math.random() * 2.0;
+      midSizes[i] = 2.0 + Math.random() * 2.2;
+      midSpeed[i] = 0.8 + Math.random() * 1.8;
       midPhase[i] = Math.random() * Math.PI * 2;
-      midStrength[i] = 0.25 + Math.random() * 0.4;
+      midStrength[i] = 0.25 + Math.random() * 0.35;
     }
 
     const midGeo = new THREE.BufferGeometry();
@@ -585,35 +630,6 @@
     scene.add(heroStarPoints);
   }
 
-  function createCenterVortex() {
-    const vortexTex = createVortexTexture();
-    const geo = new THREE.PlaneGeometry(54, 54);
-    const mat = new THREE.MeshBasicMaterial({
-      map: vortexTex,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.DoubleSide
-    });
-
-    vortexMesh = new THREE.Mesh(geo, mat);
-    vortexMesh.rotation.x = -Math.PI / 2;
-    vortexMesh.position.set(0, 0.2, 0);
-    scene.add(vortexMesh);
-
-    const haloTex = createParticleTexture();
-    const haloMat = new THREE.SpriteMaterial({
-      map: haloTex,
-      color: 0xffe680,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
-    const haloSprite = new THREE.Sprite(haloMat);
-    haloSprite.scale.set(65, 65, 1);
-    haloSprite.position.set(0, 1, 0);
-    scene.add(haloSprite);
-  }
 
   function createCenter3DText() {
     const fontLoader = new THREE.FontLoader();
@@ -719,6 +735,66 @@
       scene.add(planetGroup);
       flowerPlanets.push(planetGroup);
     });
+  }
+
+  function createFloorPhrase() {
+    const tCanvas = document.createElement('canvas');
+    tCanvas.width = 512;
+    tCanvas.height = 128;
+    const ctx = tCanvas.getContext('2d');
+    const phrase = 'Esta loca loca 🫰';
+
+    function renderText() {
+      ctx.clearRect(0, 0, 512, 128);
+
+      ctx.font = '600 38px "PlanetLabelFont", "Outfit", "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      ctx.shadowColor = 'rgba(255, 215, 0, 0.95)';
+      ctx.shadowBlur = 14;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 2;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(phrase, 256, 64);
+
+      ctx.shadowColor = 'rgba(255, 170, 0, 0.7)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(phrase, 256, 64);
+    }
+
+    renderText();
+
+    const texture = new THREE.CanvasTexture(tCanvas);
+    texture.minFilter = THREE.LinearFilter;
+    const geo = new THREE.PlaneGeometry(26, 6.5);
+    const mat = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+
+    const mesh = new THREE.Mesh(geo, mat);
+
+    floorPhraseGroup = new THREE.Group();
+    const angle = 1.65;
+    const radius = 52;
+    floorPhraseGroup.position.set(
+      Math.cos(angle) * radius,
+      1.8,
+      Math.sin(angle) * radius
+    );
+    floorPhraseGroup.add(mesh);
+
+    scene.add(floorPhraseGroup);
+
+    if ('fonts' in document) {
+      document.fonts.ready.then(() => {
+        renderText();
+        texture.needsUpdate = true;
+      });
+    }
   }
 
   function setupEvents() {
@@ -848,6 +924,8 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     const pr = Math.min(window.devicePixelRatio || 1, 2);
     renderer.setPixelRatio(pr);
+    if (starryFloorMaterial) starryFloorMaterial.uniforms.uPixelRatio.value = pr;
+    if (spiralPathsMaterial) spiralPathsMaterial.uniforms.uPixelRatio.value = pr;
     if (deepStarMaterial) deepStarMaterial.uniforms.uPixelRatio.value = pr;
     if (midStarMaterial) midStarMaterial.uniforms.uPixelRatio.value = pr;
     if (heroStarMaterial) heroStarMaterial.uniforms.uPixelRatio.value = pr;
@@ -860,8 +938,15 @@
 
     const elapsedTime = clock.getElapsedTime();
 
-    if (galaxyPoints) {
-      galaxyPoints.rotation.y = elapsedTime * 0.035;
+    if (starryFloorPoints) {
+      starryFloorPoints.rotation.y = elapsedTime * 0.012;
+    }
+
+    if (starryFloorMaterial) {
+      starryFloorMaterial.uniforms.uTime.value = elapsedTime;
+    }
+    if (spiralPathsMaterial) {
+      spiralPathsMaterial.uniforms.uTime.value = elapsedTime;
     }
 
     if (deepStarMaterial) {
@@ -877,14 +962,14 @@
       deepStarPoints.rotation.y = elapsedTime * 0.003;
     }
 
-    if (vortexMesh) {
-      vortexMesh.rotation.z = -elapsedTime * 0.65;
-      const pulse = 1 + Math.sin(elapsedTime * 2.5) * 0.04;
-      vortexMesh.scale.set(pulse, pulse, 1);
-    }
 
     if (centerText3DGroup) {
       centerText3DGroup.position.y = 9.5 + Math.sin(elapsedTime * 1.6) * 0.8;
+    }
+
+    if (floorPhraseGroup) {
+      floorPhraseGroup.quaternion.copy(camera.quaternion);
+      floorPhraseGroup.position.y = 1.8 + Math.sin(elapsedTime * 1.5) * 0.4;
     }
 
     flowerPlanets.forEach((group) => {
