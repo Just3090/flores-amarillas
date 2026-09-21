@@ -369,7 +369,7 @@
       const paraMesh = new THREE.Mesh(paraGeo, textMat);
       paraMesh.position.y = 3.8;
 
-      const danaGeo = new THREE.TextGeometry('DANA', textOptions);
+      const danaGeo = new THREE.TextGeometry('DIANA', textOptions);
       danaGeo.computeBoundingBox();
       danaGeo.center();
       const danaMesh = new THREE.Mesh(danaGeo, textMat);
